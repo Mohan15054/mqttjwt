@@ -1,6 +1,6 @@
 # mqttjwt
 
-Another amazing EMQX plugin.
+Jwt Verify every sub.
 
 ## Release
 
