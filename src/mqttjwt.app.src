@@ -1,0 +1,11 @@
+{application, mqttjwt,
+ [{description, "Jwt Verify every sub."},
+  {vsn, "0.1.0"},
+  {modules, [mqttjwt]},
+  {registered, [mqttjwt_sup]},
+  {applications, [kernel, stdlib, map_sets]},
+  {mod, {mqttjwt_app, []}},
+  {env, []},
+  {licenses, ["Apache-2.0"]},
+  {maintainers, ["mohan <mohanakkumar.m@saint-gobain.com>"]}
+ ]}.
