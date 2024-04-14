@@ -26,23 +26,17 @@ unload() ->
 
 %% Handle client subscribe event
 on_client_subscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
-    io:format("Client ~s will subscribe to topics: ~p", [ClientId, TopicFilters]),
-    emqx_logger:info("Client ~s will subscribe to topics: ~p", [ClientId, TopicFilters]),
+    % io:format("Client ~s will subscribe to topics: ~p~n", [ClientId, TopicFilters]),
+    % emqx_logger:info("Client ~s will subscribe to topics: ~p~n", [ClientId, TopicFilters]),
     {ok, TopicFilters}.
 
+
+
 %% Handle message delivered event
-on_message_delivered(_ClientInfo = #{clientid := ClientId}, Message, _Env) ->
-    Headers = maps:get(headers, emqx_message:to_map(Message)),
-    Username = maps:get(username, Headers),
-    case extract_exp(Username, ClientId) of
-        {ok, ExpClaim} ->
-            % Return {ok, ExpClaim}
-            {ok, ExpClaim};
-        {error, Reason} ->
-            % Return the error reason if extraction fails
-            {error, Reason}
-    end,
+on_message_delivered(_ClientInfo = #{clientid := ClientId,username :=Username}, Message, _Env) ->
+    extract_exp(Username,ClientId),
     {ok, Message}.
+    
 
 extract_exp(JWTToken, ClientId) ->
     case binary:split(JWTToken, <<".">>, [global]) of
@@ -51,33 +45,33 @@ extract_exp(JWTToken, ClientId) ->
                 {_, DecodedPayload} ->
                     case jsx:decode(DecodedPayload) of
                         PayloadMap ->
+                            
                             Exp = maps:get(<<"exp">>, PayloadMap),
                             CurrentTime = erlang:system_time(second),
-
+                        
                             case Exp > CurrentTime of
                                 true ->
+                                    % io:format("Token is still valid.~n"),
                                     {ok, "Token is still valid."};
                                 false ->
-                                    case emqx_cm:kick_session(ClientId) of
+                                    % io:format("Token has expired.~n"),
+                                    case emqx_mgmt:kickout_client(ClientId) of
                                         ok ->
-                                            {error, "Token has expired."};
-                                        {error, Reason} ->
-                                            io:format("Failed to disconnect client ~s: ~p~n", [
-                                                ClientId, Reason
-                                            ]),
-                                            {error, "Failed to disconnect client."}
+                                            {ok, "Token has expired."};
+                                        _ ->
+                                            ok
                                     end
                             end;
                         Error ->
-                            io:format("Error decoding Payload: ~p~n", [Error]),
+                            % io:format("Error decoding Payload: ~p~n", [Error]),
                             {error, Error}
                     end;
                 Error ->
-                    io:format("Error decoding JWT payload: ~p~n", [Error]),
+                    % io:format("Error decoding JWT payload: ~p~n", [Error]),
                     {error, Error}
             end;
         _ ->
-            io:format("Invalid JWT token format.~n"),
+            % io:format("Invalid JWT token format.~n"),
             {error, "Invalid JWT token format."}
     end.
 
